@@ -64,9 +64,9 @@ end
 daterange = dateboundhigh-dateboundlow;
 
 if strcmp(timertype,'window')
-    numtpoints = floor(daterange/twinsize);
+    numtpoints = floor((daterange)/dayslide);
     windowcases = cell(1,numtpoints);
-    datecutset = 0:twinsize:dateboundhigh-dateboundlow;
+%     datecutset = 0:twinsize:dateboundhigh-dateboundlow;
 elseif strcmp(timertype,'cumulative')
     numtpoints = cumultpts;
     beforecases = cell(1,numtpoints);
@@ -76,10 +76,12 @@ else
     error('timer type bad');
 end
 
+% non-normalized likelihood ratio
 RL1L2set = zeros(1,numtpoints);
 Pset = zeros(1,numtpoints);
 casesat = zeros(1,numtpoints);
 linkagesat = zeros(1,numtpoints);
+% normalized likelihood ratio
 normRset = zeros(1,numtpoints);
 keepidset = cell(1,numtpoints);
 originL3_maxset = cell(1,numtpoints);
@@ -100,13 +102,18 @@ coefpowset = zeros(1,numtpoints);
 
 siglinksnetid = find(EVDpvalueSLE<1e-2);
 
-clear datelow datehigh
+clear datelow datehigh windomain
 
+allrestprob = [];
+allmoveprob = [];
 %%
 for k = 1:numtpoints
     k
-    datelow = dateboundlow + (k-1)*twinsize;
-    datehigh = dateboundlow + k*twinsize;
+    datelow = dateboundlow + dayslide*(k-1);
+    datehigh = datelow + twinsize;
+    
+    windomain(k) = datelow + twinsize/2 - dateboundlow;
+    
     if strcmp(timertype,'cumulative')
         datebound = dateboundlow + (k)*timestep;
     end
@@ -133,6 +140,9 @@ for k = 1:numtpoints
     % load C:\Users\kgustafson\Cell_ParkBedford2015Supp2\seqTrack\drive_durdist_fullto_kk152.mat drive_dur_seconds_full drive_dist_meters_full
     
     EVDroaddist.mean = zeros(size(EVDlinkagesSLEkeep,1),1);
+    EVDroaddist.median = zeros(size(EVDlinkagesSLEkeep,1),1);
+    EVDroaddist.max = zeros(size(EVDlinkagesSLEkeep,1),1);
+    EVDroaddist.min = zeros(size(EVDlinkagesSLEkeep,1),1);
     EVDroaddist.range = zeros(size(EVDlinkagesSLEkeep,1),1);
     EVDroaddist.std = zeros(size(EVDlinkagesSLEkeep,1),1);
     
@@ -175,14 +185,19 @@ for k = 1:numtpoints
         end
         
         EVDroaddist.mean(ii) = mean(drives);
+        EVDroaddist.median(ii) = mean(drives);
+        EVDroaddist.std(ii) = std(drives);
+        EVDroaddist.max(ii) = mean(drives);
+        EVDroaddist.min(ii) = mean(drives);
+        EVDroaddist.range(ii) = max(drives) - min(drives);
+        
         EVDroadtime.mean(ii) = mean(dtimes);
+        EVDroadtime.range(ii) = max(dtimes) - min(dtimes);
+        EVDroadtime.std(ii) = std(dtimes);
+        
         EVDpop.mean(ii,:) = mean(popnode,1);
         EVDpop.median(ii,:) = median(popnode,1);
-        EVDroaddist.range(ii) = max(drives) - min(drives);
-        EVDroadtime.range(ii) = max(dtimes) - min(dtimes);
         EVDpop.range(ii,:) = max(popnode,[],1) - min(popnode,[],1);
-        EVDroaddist.std(ii) = std(drives);
-        EVDroadtime.std(ii) = std(dtimes);
         EVDpop.std(ii,:) = std(popnode,0,1);
         
         % find the chiefdom with the maximum population in the district
@@ -254,10 +269,12 @@ for k = 1:numtpoints
         likelipl(k) = likliplcdf;
         coefpowset(k) = coefpow(1);
     end
-    
     % this function computes the likelihood ratio
     LP_gravlevy
     
+    allrestprob = [allrestprob restprob];
+    allmoveprob = [allmoveprob moveprob];
+
     RL1L2set(k) = RL1L2;
     normRset(k) = normRgravlevy;
     Pset(k) = -log10(pgravlevy);
@@ -273,39 +290,42 @@ for k = 1:numtpoints
     
 end
 %%
-startplotid = find(isnan(normRset(1:end-1)));
 
-normRset(startplotid) = 0;
-RL1L2set(startplotid) = 0;
-Pset(startplotid) = 0;
-
-figure; subplot(2,1,1); yyaxis left
-
-dName = [dataset,' ',chiefpop];
-if strcmp(timertype,'window')
-    plot(datecutset(1:end-1)-min(datecutset)+twinsize/2,normRset,'DisplayName',dName); ylabel(['normalized LR ',gravity_type,' ',levyfit]); grid on
-elseif strcmp(timertype,'cumulative')
-    plot(datecutset,normRset,'DisplayName',dName); ylabel(['normalized LR ',gravity_type,' ',levyfit]); grid on
+if plotLRon
+    startplotid = find(isnan(normRset(1:end-1)));
+    
+    normRset(startplotid) = 0;
+    RL1L2set(startplotid) = 0;
+    Pset(startplotid) = 0;
+    
+    figure; subplot(2,1,1); yyaxis left
+    
+    dName = [gravity_type];
+    if strcmp(timertype,'window')
+        plot(windomain,normRset,'DisplayName',dName); ylabel(['normalized LR ']); grid on
+    elseif strcmp(timertype,'cumulative')
+        plot(datecutset,normRset,'DisplayName',dName); ylabel(['normalized LR ']); grid on
+    end
+    legend toggle;
+    yyaxis right
+    if strcmp(timertype,'window')
+        plot(windomain,casesat); ylabel('case count'); grid on
+    elseif strcmp(timertype,'cumulative')
+        plot(datecutset,casesat); ylabel('case count'); grid on
+    end
+    title([phylotype, ' of linkages N=',num2str(size(EVDlinkagesSLE,1)),' ',chiefpop,' ',levyfit]);
+    if strcmp(timertype,'window')
+        xlabel(['center of ',num2str(twinsize),'-day window (days after 18-Mar-2014)']);
+    elseif strcmp(timertype,'cumulative')
+        xlabel('days after 18-Mar-2014');
+    else
+        error('timertype wrong');
+    end
+    subplot(2,1,2);
+    if strcmp(timertype,'window')
+        plot(windomain,Pset,'DisplayName',dName); ylabel('P score'); grid on
+    elseif strcmp(timertype,'cumulative')
+        plot(datecutset,Pset,'DisplayName',dName); ylabel('P score'); grid on
+    end
+    legend toggle;
 end
-yyaxis right
-if strcmp(timertype,'window')
-    plot(datecutset(1:end-1)-min(datecutset)+twinsize/2,casesat,'DisplayName',dName); ylabel('case count'); grid on
-elseif strcmp(timertype,'cumulative')
-    plot(datecutset,casesat,'DisplayName',dName); ylabel('case count'); grid on
-end
-title(['sequences ',phylotype, ' of linkages N=',num2str(size(EVDlinkagesSLE,1))]);
-if strcmp(timertype,'window')
-    xlabel(['center of ',num2str(twinsize),'-day window (days after 18-Mar-2014)']);
-elseif strcmp(timertype,'cumulative')
-    xlabel('days after 18-Mar-2014');
-else
-    error('timertype wrong');
-end
-legend toggle;
-subplot(2,1,2);
-if strcmp(timertype,'window')
-    plot(datecutset(1:end-1)-min(datecutset)+twinsize/2,Pset,'DisplayName',dName); ylabel('P score'); grid on
-elseif strcmp(timertype,'cumulative')
-    plot(datecutset,Pset,'DisplayName',dName); ylabel('P score'); grid on
-end
-legend toggle;

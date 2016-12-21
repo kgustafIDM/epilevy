@@ -10,9 +10,12 @@ if casesat(k)>0 && strcmp(gravity_type,'grav3param')
 elseif casesat(k)>0 && strcmp(gravity_type,'grav2param')
     gravp1 = fitgravcoef2{1, k}.Estimate(2);
     gravp2 = fitgravcoef2{1, k}.Estimate(3);
-    gravgamma = gravgamma0;
+    gravgamma = 2;
+%     gravgamma = mdlpow.Coefficients.Estimate(2);
 elseif strcmp(gravity_type,'classical')
-    gravgamma = gravgamma0; gravp1 = gravp10; gravp2 = gravp20;
+    gravgamma = 2; gravp1 = 1; gravp2 = 1;
+elseif strcmp(gravity_type,'input')
+    gravgamma = rho; gravp1 = tau1; gravp2 = tau2;
 end
 
 sigmaRgravlevy = zeros(size(alevy));
@@ -72,8 +75,11 @@ for kk = 1:size(alevy,2)
     
     if strcmp(levyfit,'fixalpha')
         alphalevy = alevy(kk);
+%         alphalevy = gravgamma;
     elseif strcmp(levyfit,'clauset')
         alphalevy = aX3cdf;
+    elseif strcmp(levyfit,'modelfun')
+        alphalevy = mdlpow.Coefficients.Estimate(2);
     end
     
     gravprob = zeros(size(drive_dist));
@@ -92,10 +98,18 @@ for kk = 1:size(alevy,2)
                     gravprob(ii,jj) = 0;
                     levyprob(ii,jj) = 0;
                 elseif strcmp(resting,'option1');
-                    gravprob(ii,jj) = pop_counts(ii)^2./rad_chiefdom^2;
+%                     gravprob(ii,jj) = pop_counts(ii)^(2*gravp1)./rad_chiefdom^gravgamma;
+%                     gravprob(ii,jj) = pop_counts(ii)^2./rad_chiefdom^2;
+%                     gravprob(ii,jj) = 1;
+%                     gravprob(ii,jj) = pop_counts(ii)./rad_chiefdom;
+
+                    gravprob(ii,jj) = 0;
+                    levyprob(ii,jj) = 0;
+
 %                     levyprob(ii,jj) = restprob(ii);
 %                     levyprob(ii,jj) = mean(restprob);
-                    levyprob(ii,jj) = 1./rad_chiefdom^alphalevy;
+%                     levyprob(ii,jj) = 1/rad_chiefdom^alphalevy;
+%                     levyprob(ii,jj) = pop_counts(ii)./rad_chiefdom;
                 end
             else
                 gravprob(ii,jj) = pop_counts(ii)^gravp1*pop_counts(jj)^gravp2/(drive_dist(ii,jj)/xminkm)^gravgamma;
@@ -106,6 +120,11 @@ for kk = 1:size(alevy,2)
         normlevy(ii) = sum(levyprob(ii,:));
         gravprobnorm(ii,:) = gravprob(ii,:)./normgrav(ii);
         levyprobnorm(ii,:) = levyprob(ii,:)./normlevy(ii);
+        % make the (ii,ii) resting probablity for Levy equal to gravity,
+        % and rescale the rest of the Levy probabilities to conserve total
+%         levyprobnorm(ii,ii) = gravprobnorm(ii,ii); 
+%         sumelse = sum(levyprobnorm(ii,[1:ii-1 ii+1:end]));
+%         levyprobnorm(ii,[1:ii-1 ii+1:end]) = levyprobnorm(ii,[1:ii-1 ii+1:end])*(1-levyprobnorm(ii,ii))./sumelse;
     end
         
     %compute model likelihoods
@@ -114,6 +133,11 @@ for kk = 1:size(alevy,2)
     
     logLgrav = [];
     logLlevy = [];
+    normg = [];
+    pgrav = [];
+    normlev = [];
+    plev = [];
+    
     opopsy = [];
     for ii = 1:size(sortuniqorigins,1)
         % recover the chiefdom id for the origin
@@ -125,18 +149,28 @@ for kk = 1:size(alevy,2)
             if (ddij > 0 && ddij < maxdd)
                 if oid == destys(jj)
                     % this protects from dividing by zero
-                    ijlogLlevy = log(gravprobnorm(ii,jj));
-                    ijlogLgrav = log(levyprobnorm(ii,jj));
+                    ijlogLlevy = log(gravprobnorm(ii,ii));
+                    ijlogLgrav = log(levyprobnorm(ii,ii));
                 else
-                    ijlogLgrav = -log(normgrav(oid)) ...
-                        + gravp1*log(pop_counts(oid)) + gravp2*log(pop_counts(destys(jj)))...
-                        - gravgamma*log(ddij/xminkm);
+                    
+                    normg1 = -log(normgrav(oid));
+                    pgrav1 = gravp1*log(pop_counts(oid)) ...
+                             + gravp2*log(pop_counts(destys(jj)))...
+                             - gravgamma*log(ddij/xminkm);
+                   
+                    ijlogLgrav =  normg1 + pgrav1;
                     
                     nextterm1 = -log(normlevy(oid));
                     nextterm2 = -alphalevy*log(ddij/xminkm);
+                    
                     ijlogLlevy = nextterm1 + nextterm2;
                     
                 end
+                normg = [normg normg1];
+                pgrav = [pgrav pgrav1];
+                normlev = [normlev nextterm1];
+                plev = [plev nextterm2];
+                
                 logLgrav = [logLgrav ijlogLgrav];
                 logLlevy = [logLlevy ijlogLlevy];
             end

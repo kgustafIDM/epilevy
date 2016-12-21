@@ -1,9 +1,7 @@
 %% acquire the nonzero distances and populations between those locations
 % y should be count of occurrences of unique distances
 
-nzidEVDrdm = find(EVDroaddist.mean>0);
-nzEVDrdm = EVDroaddist.mean(nzidEVDrdm);
-[uEVDrddmean, iEVDrddmean, iuEVDrddmean] = unique(nzEVDrdm);
+% [uEVDrddmean, iEVDrddmean, iuEVDrddmean] = unique(nzEVDrdm);
 
 onlyunique = 0;
 
@@ -21,15 +19,34 @@ onlyunique = 0;
 % here, I think I have to select the unique occurences to put into the
 % nonlinear model fitting
 if onlyunique==0
-    pop1 = EVDpop.median(nzidEVDrdm(:),1);
-    pop2 = EVDpop.median(nzidEVDrdm(:),2);
-    dist = nzEVDrdm(:);
-    XEVDrdd_Park = [pop1,pop2,dist];
-elseif onlyunique==1
-    pop1 = EVDpop.mean(nzidEVDrdm(iEVDrddmean),1);
-    pop2 = EVDpop.mean(nzidEVDrdm(iEVDrddmean),2);
-    dist = nzEVDrdm(iEVDrddmean);
-    XEVDrdd_Park = [pop1,pop2,dist];
+    if strcmp(chiefpop,'median')
+        nzidEVDrdm = find(EVDroaddist.median>0);
+        pop1 = EVDpop.median(nzidEVDrdm(:),1);
+        pop2 = EVDpop.median(nzidEVDrdm(:),2);
+        dist = EVDroaddist.median(nzidEVDrdm);
+    elseif strcmp(chiefpop,'max')
+        nzidEVDrdm = find(EVDroaddist.max>0);
+        pop1 = EVDpop.max(nzidEVDrdm(:),1);
+        pop2 = EVDpop.max(nzidEVDrdm(:),2);
+        dist = EVDroaddist.max(nzidEVDrdm);
+    elseif strcmp(chiefpop,'mean')
+        nzidEVDrdm = find(EVDroaddist.mean>0);
+        pop1 = EVDpop.mean(nzidEVDrdm(:),1);
+        pop2 = EVDpop.mean(nzidEVDrdm(:),2);
+        dist = EVDroaddist.mean(nzidEVDrdm);
+    elseif strcmp(chiefpop,'min')
+        nzidEVDrdm = find(EVDroaddist.min>0);
+        pop1 = EVDpop.min(nzidEVDrdm(:),1);
+        pop2 = EVDpop.min(nzidEVDrdm(:),2);
+        dist = EVDroaddist.min(nzidEVDrdm);
+    end
+    XEVDrdd = [pop1,pop2,dist];
+% elseif onlyunique==1
+    % DONT USE THIS
+%     pop1 = EVDpop.mean(nzidEVDrdm(iEVDrddmean),1);
+%     pop2 = EVDpop.mean(nzidEVDrdm(iEVDrddmean),2);
+%     dist = nzEVDrdm(iEVDrddmean);
+%     XEVDrdd_Park = [pop1,pop2,dist];
 end
 
 % XEVDrddnorm = [EVDpop.mean(nzidEVDrdm(iEVDrddmean),1)./mean(EVDpop.mean(nzidEVDrdm(iEVDrddmean),1)),...
@@ -37,12 +54,12 @@ end
 %                 nzEVDrdm(iEVDrddmean)./mean(nzEVDrdm(iEVDrddmean))];
 
 % simple linear fit to the histogram of distances
-linkdist_km_Park = XEVDrdd_Park(:,3)./1000;
+linkdist_km = XEVDrdd(:,3)./1000;
 %%
 nbinsEVD = 20;
 
-[countX3,edgesX3,binX3] = histcounts(linkdist_km_Park,nbinsEVD,'Normalization','count');
-[probX3,edgesX3,binX3] = histcounts(linkdist_km_Park,nbinsEVD,'Normalization','probability');
+[countX3,edgesX3,binX3] = histcounts(linkdist_km,nbinsEVD,'Normalization','count');
+[probX3,edgesX3,binX3] = histcounts(linkdist_km,nbinsEVD,'Normalization','probability');
 
 % start the tail at the maximum of the distribution
 minbinEVD = find(countX3==max(countX3));
@@ -61,22 +78,25 @@ fittedX = linspace(min(l10centers),max(l10centers),100);
 
 % figure; plot(l10centers,l10counts,'o')
 % hold on; plot(fittedX,fittedY,'k-');
+% title(['linear polyfit(), ',num2str(nbinsEVD),' bins, slope= ',num2str(coefpow(1))]);
+% xlabel('log10(distance(km))');  ylabel('count');
 
 %% binning to find generalized gravity law fit
 
-rexp = 2.1;
-scale = 5;
-scale2 = 5;
-
-lock_exponent = 1.8;
-
-expt_gravity=[];
-expt_power=[];
-for jj = 1:size(probX3,2)
-    gig = find(binX3==jj);
-    expt_gravity(jj) = mean(scale.*XEVDrdd_Park(gig,1).*XEVDrdd_Park(gig,2)./XEVDrdd_Park(gig,3).^2);
-    expt_power(jj) = mean(scale2./XEVDrdd_Park(gig,3).^rexp);
-end
+%   TEST CODE
+% rexp = 2.1;
+% scale = 5;
+% scale2 = 5;
+% 
+% lock_exponent = 1.8;
+% 
+% expt_gravity=[];
+% expt_power=[];
+% for jj = 1:size(probX3,2)
+%     gig = find(binX3==jj);
+%     expt_gravity(jj) = mean(scale.*XEVDrdd_Park(gig,1).*XEVDrdd_Park(gig,2)./XEVDrdd_Park(gig,3).^2);
+%     expt_power(jj) = mean(scale2./XEVDrdd_Park(gig,3).^rexp);
+% end
 
 binmean_pop1 = zeros(size(probX3));
 binmean_pop2 = zeros(size(probX3));
@@ -87,9 +107,9 @@ for jj = 1:size(probX3,2)
     if isempty(gig)
         0;
     else
-        binmean_pop1(jj) = mean(XEVDrdd_Park(gig,1));
-        binmean_pop2(jj) = mean(XEVDrdd_Park(gig,2));
-        binmean_dist(jj) = mean(XEVDrdd_Park(gig,3));
+        binmean_pop1(jj) = mean(XEVDrdd(gig,1));
+        binmean_pop2(jj) = mean(XEVDrdd(gig,2));
+        binmean_dist(jj) = mean(XEVDrdd(gig,3));
     end
 end
 
@@ -103,7 +123,7 @@ betagrav = [1 1 1 -2];
 mdlg = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity,betagrav,'Options',opts);
 mdlg.Coefficients;
 
-modelfun_gravity2 = @(b,x)b(1) + x(:,1).*b(2) + x(:,2).*b(3) - gravgamma0.*x(:,3);
+modelfun_gravity2 = @(b,x)b(1) + x(:,1).*b(2) + x(:,2).*b(3) - gravgamma.*x(:,3);
 betagrav2 = [1 1 1];
 mdlg2 = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity2,betagrav2,'Options',opts);
 mdlg2.Coefficients;
@@ -116,15 +136,15 @@ mdlpow.Coefficients;
 xminvalue = 50;
 xmaxvalue = 500;
 
-lesslink_Park = find(linkdist_km_Park<xmaxvalue);
+lesslink = find(linkdist_km<xmaxvalue);
 
-if size(unique(linkdist_km_Park(lesslink_Park)),1)<2
+if size(unique(linkdist_km(lesslink)),1)<2
     aX3cdf = 0;
     likliplcdf = 0;
 else
-    [aX3cdf,bmX3cdf,likliplcdf] = plfit(linkdist_km_Park(lesslink_Park),'xmin',xminvalue);
+    [aX3cdf,bmX3cdf,likliplcdf] = plfit(linkdist_km(lesslink),'xmin',xminvalue);
 end
-
+% plplot(linkdist_km(lesslink),xminvalue,aX3cdf);
 % Xgrav = [ones(size(binmean_pop1)); log10(binmean_pop1); log10(binmean_pop2); log10(binmean_dist)];
 % logGrav = Xgrav';
 % 
