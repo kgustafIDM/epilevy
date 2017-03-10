@@ -1,4 +1,8 @@
-%% acquire the nonzero distances and populations between those locations
+function [moddelg, modelg2, modelpow, aX3cdflessfit, aX3cdfmorefit, likliplcdfless, likliplcdfmore, cpow] = fit_gravlevy(rho,tau1,tau2,alevy,EVDpop,EVDroaddist)
+
+LR_params;
+
+% acquire the nonzero distances and populations between those locations
 % y should be count of occurrences of unique distances
 
 % [uEVDrddmean, iEVDrddmean, iuEVDrddmean] = unique(nzEVDrdm);
@@ -55,7 +59,7 @@ end
 
 % simple linear fit to the histogram of distances
 linkdist_km = XEVDrdd(:,3)./1000;
-%%
+%
 nbinsEVD = 20;
 
 [countX3,edgesX3,binX3] = histcounts(linkdist_km,nbinsEVD,'Normalization','count');
@@ -72,9 +76,9 @@ ecentEVD = (edgesX3(2:end)-edgesX3(1:end-1))./2+edgesX3(1:end-1);
 l10centers = log10(ecentEVD);
 l10counts = log10(countX3+1);
 
-[coefpow, Spow] = polyfit(l10centers(minbinEVD:end),l10counts(minbinEVD:end),1);
+[cpow, Spow] = polyfit(l10centers(minbinEVD:end),l10counts(minbinEVD:end),1);
 fittedX = linspace(min(l10centers),max(l10centers),100);
-[fittedY,deltaY] = polyval(coefpow,fittedX,Spow);
+[fittedY,deltaY] = polyval(cpow,fittedX,Spow);
 
 % figure; plot(l10centers,l10counts,'o')
 % hold on; plot(fittedX,fittedY,'k-');
@@ -120,31 +124,46 @@ logfitX = [log10(binmean_pop1+1); log10(binmean_pop2+1); log10(binmean_dist+1)];
 
 modelfun_gravity = @(b,x)b(1) + x(:,1).*b(2) + x(:,2).*b(3) + x(:,3).*b(4);
 betagrav = [1 1 1 -2];
-mdlg = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity,betagrav,'Options',opts);
-mdlg.Coefficients;
+moddelg = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity,betagrav,'Options',opts);
+moddelg.Coefficients;
 
-modelfun_gravity2 = @(b,x)b(1) + x(:,1).*b(2) + x(:,2).*b(3) - gravgamma.*x(:,3);
+modelfun_gravity2 = @(b,x)b(1) + x(:,1).*b(2) + x(:,2).*b(3) - rho.*x(:,3);
 betagrav2 = [1 1 1];
-mdlg2 = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity2,betagrav2,'Options',opts);
-mdlg2.Coefficients;
+modelg2 = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_gravity2,betagrav2,'Options',opts);
+modelg2.Coefficients;
 
 modelfun_power = @(b,x)b(1) + x(:,3).*b(2);
 betapow = [1 -2];
-mdlpow = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_power,betapow,'Options',opts);
-mdlpow.Coefficients;
+modelpow = fitnlm(logfitX(:,minbinEVD:end)',logcounts(minbinEVD:end),modelfun_power,betapow,'Options',opts);
+modelpow.Coefficients;
 
-xminvalue = 50;
-xmaxvalue = 500;
+lesslink = find(linkdist_km<xcutvalue);
+morelink = find(linkdist_km>xcutvalue);
+midlink = find(linkdist_km>xminvalue & linkdist_km<xmaxvalue);
+% 
+% linkdist_less = [linkdist_less; linkdist_km(lesslink)];
+% linkdist_more = [linkdist_more; linkdist_km(morelink)];
+linkdist_less = linkdist_km(lesslink);
+linkdist_more = linkdist_km(morelink);
 
-lesslink = find(linkdist_km<xmaxvalue);
-
-if size(unique(linkdist_km(lesslink)),1)<2
-    aX3cdf = 0;
-    likliplcdf = 0;
+if size(unique(linkdist_less),1)<2
+    aX3cdfless = 0;
+    likliplcdfless = 0;
 else
-    [aX3cdf,bmX3cdf,likliplcdf] = plfit(linkdist_km(lesslink),'xmin',xminvalue);
+    [aX3cdfless,bmX3cdfless,likliplcdfless] = plfit(linkdist_less,'xmin',xminvalue);
 end
-% plplot(linkdist_km(lesslink),xminvalue,aX3cdf);
+aX3cdflessfit = aX3cdfless;
+% aX3cdfless = 0.5;
+if size(unique(linkdist_more),1)<2
+    aX3cdfmore = 0;
+    likliplcdfmore = 0;
+else
+    [aX3cdfmore,bmX3cdfmore,likliplcdfmore] = plfit(linkdist_more,'xmin',xminvalue);
+%     plplot(linkdist_more,xminvalue,aX3cdfmore); drawnow; pause(1);
+end
+aX3cdfmorefit = aX3cdfmore
+% aX3cdfmore = 2.1;
+% plplot(linkdist_more,xminvalue,aX3cdfmorefit); drawnow; pause(1); 
 % Xgrav = [ones(size(binmean_pop1)); log10(binmean_pop1); log10(binmean_pop2); log10(binmean_dist)];
 % logGrav = Xgrav';
 % 
@@ -169,3 +188,4 @@ end
 % 
 % figure; plot(ecent,expt_gravity_norm./NX3,'o');
 % hold on; plot(ecent,5.*expt_power_norm./NX3,'o');
+end

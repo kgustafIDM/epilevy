@@ -13,10 +13,10 @@ gen_vel = 2;
 % region where the random walkers are allowed
 max_step_size = 1000;
 
-mu_space1 = 2:0.1:2.5;
-nu_space1 = 1.1:0.1:2;
+mu_space1 = 0.2:0.1:0.8;
+nu_space1 = 1.1:0.1:1.4;
 
-mu_space2 = 1.5:0.1:3;
+mu_space2 = 0.2:0.1:0.8;
 nu_space2 = 0.1:0.1:0.4;
 
 gamma = zeros(length(mu_space1),length(nu_space1));
@@ -41,8 +41,8 @@ for iii = 1:length(mu_space1)
                 gamma(iii,jjj) = 2*nu;
             end
         end
-        if gamma(iii,jjj) > 0
-            gammarun = gamma(iii,jjj);
+        %if gamma(iii,jjj) > 0
+            gammarun = gamma(iii,jjj)
             kpareto = 1/(mu-1);
             % this "threshold parameter" essentially sets the scale of the random walk
             % through the coupling to sigma that I introduce to eliminate the 1 + term
@@ -59,13 +59,13 @@ for iii = 1:length(mu_space1)
 
             save([runname,'.mat']);
 
-        end
+        %end
     end
 end
 
 gamma = zeros(length(mu_space2),length(nu_space2));
 
-for iii = 13:length(mu_space2)
+for iii = 1:length(mu_space2)
     for jjj = 1:length(nu_space2)
         mu = mu_space2(iii)
         nu = nu_space2(jjj)
@@ -85,8 +85,8 @@ for iii = 13:length(mu_space2)
                 gamma(iii,jjj) = 2*nu;
             end
         end
-        if gamma(iii,jjj) > 0
-            gammarun = gamma(iii,jjj);
+        %if gamma(iii,jjj) > 0
+            gammarun = gamma(iii,jjj)
             kpareto = 1/(mu-1);
             % this "threshold parameter" essentially sets the scale of the random walk
             % through the coupling to sigma that I introduce to eliminate the 1 + term
@@ -103,6 +103,6 @@ for iii = 13:length(mu_space2)
 
             save([runname,'.mat']);
 
-        end
+        %end
     end
 end
